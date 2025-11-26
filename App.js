@@ -33,7 +33,7 @@ export default function App() {
             id: Date.now().toString(),
             title: text.trim(),
             date: formatDate(date),
-            photos: photo,
+            photos: photo || null,
         };
 
         setTodos([newTodo, ...todos]);
@@ -70,8 +70,7 @@ export default function App() {
 
         if (result.canceled) return;
 
-        const uri = result.assets[0].uri;
-        setPhoto(uri);
+        setPhoto(result.assets[0].uri);
     };
 
     const getGallery = async () => {
@@ -89,8 +88,7 @@ export default function App() {
 
         if (result.canceled) return;
 
-        const uri = result.assets[0].uri;
-        setPhoto(uri);
+        setPhoto(result.assets[0].uri);
     };
 
     return (
@@ -102,7 +100,7 @@ export default function App() {
                     <TextInput
                         style={styles.in}
                         placeholder="할 일 입력"
-                        placeholderTextColor="#b5aa7e"
+                        placeholderTextColor="#d5c6f7"
                         value={text}
                         onChangeText={setText}
                     />
@@ -128,6 +126,13 @@ export default function App() {
                     </Pressable>
                 </View>
 
+                {photo && (
+                    <Image
+                        source={{ uri: photo }}
+                        style={styles.previewImage}
+                    />
+                )}
+
                 {showPicker && (
                     <DateTimePicker
                         value={date}
@@ -144,10 +149,7 @@ export default function App() {
                         <Text style={styles.listText}>할 일이 없어요...</Text>
                     }
                     renderItem={({ item, index }) => (
-                        <Pressable
-                            onLongPress={() => removeTodo(item.id)}
-                            style={styles.todoItem}
-                        >
+                        <View style={styles.todoItem}>
                             {item.photos && (
                                 <Image
                                     source={{ uri: item.photos }}
@@ -158,10 +160,14 @@ export default function App() {
                             <Text style={styles.todoIndex}>{index + 1}</Text>
                             <Text style={styles.todoTitle}>{item.title}</Text>
                             <Text style={styles.todoDate}>{item.date}</Text>
-                            <Text style={styles.deleteText}>
-                                길게 눌러 삭제
-                            </Text>
-                        </Pressable>
+
+                            <Pressable
+                                onPress={() => removeTodo(item.id)}
+                                style={styles.deleteBtn}
+                            >
+                                <Text style={styles.deleteBtnTxt}>삭제</Text>
+                            </Pressable>
+                        </View>
                     )}
                 />
             </View>
@@ -169,10 +175,13 @@ export default function App() {
     );
 }
 
+const BABY_PINK = "#FFC7E5"; // 포근한 베이비핑크
+const BABY_PINK_BORDER = "#E8A8CB";
+
 const styles = StyleSheet.create({
     container: {
         flex: 1,
-        backgroundColor: "#2d2a26",
+        backgroundColor: "#2a2141",
         alignItems: "center",
         justifyContent: "center",
         padding: 40,
@@ -184,7 +193,7 @@ const styles = StyleSheet.create({
     },
     title: {
         fontSize: 28,
-        color: "#f4e9c9",
+        color: "#f6d6ff",
         fontWeight: "bold",
         marginBottom: 20,
         textShadowColor: "#000",
@@ -194,90 +203,119 @@ const styles = StyleSheet.create({
     inputR: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 20,
+        marginBottom: 10,
     },
     in: {
         borderWidth: 2,
-        borderColor: "#c5b783",
+        borderColor: "#b191f3",
         padding: 12,
         borderRadius: 4,
         marginRight: 6,
-        backgroundColor: "#f4e9c9",
-        color: "#4b3f2f",
+        backgroundColor: "#e9d8ff",
+        color: "#3e2b5c",
         width: 180,
         fontWeight: "bold",
     },
     dateBtn: {
         borderWidth: 2,
-        borderColor: "#c5b783",
+        borderColor: "#b191f3",
         padding: 10,
-        backgroundColor: "#e2d6ab",
+        backgroundColor: "#d9c4ff",
         marginRight: 6,
     },
     dateText: {
         fontWeight: "bold",
-        color: "#4b3f2f",
+        color: "#3f295c",
     },
     photoBox: {
         marginRight: 6,
     },
     smallBtn: {
-        backgroundColor: "#b89f5d",
+        backgroundColor: "#c072e8",
         padding: 6,
         marginBottom: 4,
         borderWidth: 2,
-        borderColor: "#5b4a2b",
+        borderColor: "#6a2d91",
+        alignItems: "center",
     },
     smallBtnTxt: {
         color: "#fff",
         fontWeight: "bold",
+        textAlign: "center",
     },
+
+    /* ★★★ 여기부터 베이비핑크 버튼 ★★★ */
+
     addBtn: {
-        backgroundColor: "#7a3d3d",
+        backgroundColor: BABY_PINK, // 베이비핑크
         borderWidth: 2,
-        borderColor: "#4d2222",
+        borderColor: BABY_PINK_BORDER,
         paddingVertical: 14,
         paddingHorizontal: 16,
     },
     addBtnTxt: {
-        color: "#fff",
+        color: "#5a3750",
         fontWeight: "bold",
+        textAlign: "center",
+    },
+    deleteBtn: {
+        marginTop: 8,
+        backgroundColor: BABY_PINK, // 베이비핑크
+        padding: 10,
+        borderWidth: 2,
+        borderColor: BABY_PINK_BORDER,
+        width: 120,
+        alignSelf: "center",
+        alignItems: "center",
+    },
+    deleteBtnTxt: {
+        color: "#5a3750",
+        fontWeight: "bold",
+        fontSize: 12,
+        textAlign: "center",
+    },
+
+    /* 나머지 동일 */
+
+    previewImage: {
+        width: 150,
+        height: 120,
+        marginBottom: 12,
+        borderWidth: 2,
+        borderColor: "#b191f3",
     },
     listText: {
         marginTop: 30,
-        color: "#c3b79d",
+        color: "#d7c5f7",
     },
     todoItem: {
-        backgroundColor: "#f4e9c9",
+        backgroundColor: "#f3daff",
         padding: 14,
         marginVertical: 8,
         marginHorizontal: 14,
         borderWidth: 3,
-        borderColor: "#7c6a41",
+        borderColor: "#b191f3",
+        alignItems: "center",
     },
     photoImage: {
         width: 120,
         height: 100,
         marginBottom: 8,
         borderWidth: 2,
-        borderColor: "#7c6a41",
+        borderColor: "#9b72d9",
     },
     todoIndex: {
         fontWeight: "bold",
-        color: "#3a2f1f",
+        color: "#4c2a7b",
     },
     todoTitle: {
         fontSize: 18,
         fontWeight: "bold",
-        color: "#3a2f1f",
+        color: "#4c2a7b",
         marginVertical: 4,
+        textAlign: "center",
     },
     todoDate: {
-        color: "#6d5c43",
-    },
-    deleteText: {
-        fontSize: 12,
-        color: "#8b7b5a",
-        marginTop: 6,
+        color: "#7a62a8",
     },
 });
