@@ -5,9 +5,9 @@ import {
     View,
     TextInput,
     Platform,
-    FlatList,
     Pressable,
     Image,
+    FlatList,
 } from "react-native";
 import DateTimePicker from "@react-native-community/datetimepicker";
 import * as ImagePicker from "expo-image-picker";
@@ -18,6 +18,7 @@ export default function App() {
     const [date, setDate] = useState(new Date());
     const [showPicker, setShowPicker] = useState(false);
     const [photo, setPhoto] = useState(null);
+    const [editId, setEditId] = useState(null);
 
     const formatDate = (d) => {
         const y = d.getFullYear();
@@ -26,81 +27,82 @@ export default function App() {
         return `${y}-${m}-${day}`;
     };
 
-    const addTodo = () => {
+    const addOrUpdateTodo = () => {
         if (!text.trim()) return;
 
-        const newTodo = {
-            id: Date.now().toString(),
-            title: text.trim(),
-            date: formatDate(date),
-            photos: photo || null,
-        };
+        if (editId) {
+            setTodos(
+                todos.map((t) =>
+                    t.id === editId
+                        ? {
+                              ...t,
+                              title: text,
+                              date: formatDate(date),
+                              photos: photo,
+                          }
+                        : t
+                )
+            );
+            setEditId(null);
+        } else {
+            const newTodo = {
+                id: Date.now().toString(),
+                title: text,
+                date: formatDate(date),
+                photos: photo,
+            };
+            setTodos([newTodo, ...todos]);
+        }
 
-        setTodos([newTodo, ...todos]);
         setText("");
         setPhoto(null);
     };
 
-    const removeTodo = (id) => {
-        setTodos(todos.filter((item) => item.id !== id));
+    const removeTodo = (id) => setTodos(todos.filter((t) => t.id !== id));
+
+    const startEdit = (item) => {
+        setEditId(item.id);
+        setText(item.title);
+        setDate(new Date(item.date));
+        setPhoto(item.photos);
     };
 
-    const changeDate = (e, chdate) => {
+    const changeDate = (e, d) => {
         if (e.type === "dismissed") {
             setShowPicker(false);
             return;
         }
         setShowPicker(false);
-        if (chdate) {
-            setDate(chdate);
-        }
+        if (d) setDate(d);
     };
 
     const getPhoto = async () => {
-        const { status } = await ImagePicker.requestCameraPermissionsAsync();
-        if (status !== "granted") {
-            alert("카메라 권한이 필요합니다.");
-            return;
-        }
-
         const result = await ImagePicker.launchCameraAsync({
             allowsEditing: true,
             quality: 0.8,
         });
-
-        if (result.canceled) return;
-
-        setPhoto(result.assets[0].uri);
+        if (!result.canceled) setPhoto(result.assets[0].uri);
     };
 
     const getGallery = async () => {
-        const { status } =
-            await ImagePicker.requestMediaLibraryPermissionsAsync();
-        if (status !== "granted") {
-            alert("갤러리 권한이 필요합니다.");
-            return;
-        }
-
         const result = await ImagePicker.launchImageLibraryAsync({
             allowsEditing: true,
             quality: 0.8,
         });
-
-        if (result.canceled) return;
-
-        setPhoto(result.assets[0].uri);
+        if (!result.canceled) setPhoto(result.assets[0].uri);
     };
 
     return (
         <View style={styles.container}>
-            <View style={styles.outBox}>
+            {/* 🔥 상단 UI 고정 높이로 지정 */}
+            <View style={styles.headerBox}>
                 <Text style={styles.title}>★ Retro Todo List ★</Text>
 
-                <View style={styles.inputR}>
+                <View style={styles.inputRow}>
                     <TextInput
                         style={styles.in}
                         placeholder="할 일 입력"
-                        placeholderTextColor="#d5c6f7"
+                        placeholderTextColor="#c7b5e6"
                         value={text}
                         onChangeText={setText}
                     />
@@ -116,13 +118,16 @@ export default function App() {
                         <Pressable onPress={getPhoto} style={styles.smallBtn}>
                             <Text style={styles.smallBtnTxt}>촬영</Text>
                         </Pressable>
+
                         <Pressable onPress={getGallery} style={styles.smallBtn}>
                             <Text style={styles.smallBtnTxt}>갤러리</Text>
                         </Pressable>
                     </View>
 
-                    <Pressable onPress={addTodo} style={styles.addBtn}>
-                        <Text style={styles.addBtnTxt}>추가</Text>
+                    <Pressable onPress={addOrUpdateTodo} style={styles.addBtn}>
+                        <Text style={styles.addBtnTxt}>
+                            {editId ? "수정완료" : "추가"}
+                        </Text>
                     </Pressable>
                 </View>
 
@@ -132,34 +137,47 @@ export default function App() {
                         style={styles.previewImage}
                     />
                 )}
+            </View>
 
-                {showPicker && (
-                    <DateTimePicker
-                        value={date}
-                        mode="date"
-                        display={Platform.OS === "ios" ? "spinner" : "default"}
-                        onChange={changeDate}
-                    />
-                )}
+            {showPicker && (
+                <DateTimePicker
+                    value={date}
+                    mode="date"
+                    display={Platform.OS === "ios" ? "spinner" : "default"}
+                    onChange={changeDate}
+                />
+            )}
 
-                <FlatList
-                    data={todos}
-                    keyExtractor={(item) => item.id}
-                    ListEmptyComponent={
-                        <Text style={styles.listText}>할 일이 없어요...</Text>
-                    }
-                    renderItem={({ item, index }) => (
-                        <View style={styles.todoItem}>
-                            {item.photos && (
-                                <Image
-                                    source={{ uri: item.photos }}
-                                    style={styles.photoImage}
-                                />
-                            )}
+            {/* 🔥 리스트는 남은 공간 flex:1 로 */}
+            <FlatList
+                style={{ flex: 1 }}
+                data={todos}
+                keyExtractor={(item) => item.id}
+                numColumns={2}
+                columnWrapperStyle={{ justifyContent: "center" }}
+                contentContainerStyle={styles.cardWrap}
+                ListEmptyComponent={
+                    <Text style={styles.emptyText}>할 일이 없어요...</Text>
+                }
+                renderItem={({ item }) => (
+                    <View style={styles.card}>
+                        {item.photos && (
+                            <Image
+                                source={{ uri: item.photos }}
+                                style={styles.cardImg}
+                            />
+                        )}
 
-                            <Text style={styles.todoIndex}>{index + 1}</Text>
-                            <Text style={styles.todoTitle}>{item.title}</Text>
-                            <Text style={styles.todoDate}>{item.date}</Text>
+                        <Text style={styles.cardTitle}>{item.title}</Text>
+                        <Text style={styles.cardDate}>{item.date}</Text>
+
+                        <View style={styles.cardBtns}>
+                            <Pressable
+                                onPress={() => startEdit(item)}
+                                style={styles.editBtn}
+                            >
+                                <Text style={styles.editBtnTxt}>수정</Text>
+                            </Pressable>
 
                             <Pressable
                                 onPress={() => removeTodo(item.id)}
@@ -168,154 +186,178 @@ export default function App() {
                                 <Text style={styles.deleteBtnTxt}>삭제</Text>
                             </Pressable>
                         </View>
-                    )}
-                />
-            </View>
+                    </View>
+                )}
+            />
         </View>
     );
 }
 
-const BABY_PINK = "#FFC7E5"; // 포근한 베이비핑크
-const BABY_PINK_BORDER = "#E8A8CB";
+const BABY_PINK = "#FFC7E5";
+const CLEAN_BORDER = "#EBDCF9";
+const CLEAN_CARD = "#FAF7FF";
 
 const styles = StyleSheet.create({
     container: {
         flex: 1,
         backgroundColor: "#2a2141",
         alignItems: "center",
-        justifyContent: "center",
-        padding: 40,
     },
-    outBox: {
-        flex: 1,
+
+    /* ⬇ 상단 UI 고정 높이 (마음에 맞게 조절 가능) */
+    headerBox: {
+        height: 330,
+        justifyContent: "flex-end",
         alignItems: "center",
-        width: "100%",
+        paddingBottom: 10,
     },
+
     title: {
         fontSize: 28,
         color: "#f6d6ff",
         fontWeight: "bold",
         marginBottom: 20,
-        textShadowColor: "#000",
-        textShadowOffset: { width: 2, height: 2 },
-        textShadowRadius: 1,
+        textAlign: "center",
     },
-    inputR: {
+
+    inputRow: {
         flexDirection: "row",
         alignItems: "center",
-        marginBottom: 10,
+        justifyContent: "center",
+        gap: 8,
+        flexWrap: "wrap",
     },
+
     in: {
-        borderWidth: 2,
-        borderColor: "#b191f3",
-        padding: 12,
-        borderRadius: 4,
-        marginRight: 6,
         backgroundColor: "#e9d8ff",
+        borderWidth: 2,
+        borderColor: CLEAN_BORDER,
+        padding: 10,
+        width: 150,
+        borderRadius: 8,
         color: "#3e2b5c",
-        width: 180,
         fontWeight: "bold",
     },
+
     dateBtn: {
         borderWidth: 2,
-        borderColor: "#b191f3",
+        borderColor: CLEAN_BORDER,
         padding: 10,
-        backgroundColor: "#d9c4ff",
-        marginRight: 6,
+        borderRadius: 8,
+        backgroundColor: CLEAN_CARD,
     },
+
     dateText: {
+        color: "#4b3870",
         fontWeight: "bold",
-        color: "#3f295c",
     },
+
     photoBox: {
-        marginRight: 6,
-    },
-    smallBtn: {
-        backgroundColor: "#c072e8",
-        padding: 6,
-        marginBottom: 4,
-        borderWidth: 2,
-        borderColor: "#6a2d91",
+        justifyContent: "center",
         alignItems: "center",
     },
+
+    smallBtn: {
+        backgroundColor: "#c072e8",
+        width: 70,
+        height: 40,
+        justifyContent: "center",
+        alignItems: "center",
+        borderRadius: 8,
+        borderWidth: 1,
+        borderColor: "#8d4bb8",
+        marginBottom: 4,
+    },
+
     smallBtnTxt: {
         color: "#fff",
         fontWeight: "bold",
         textAlign: "center",
     },
 
-    /* ★★★ 여기부터 베이비핑크 버튼 ★★★ */
-
     addBtn: {
-        backgroundColor: BABY_PINK, // 베이비핑크
-        borderWidth: 2,
-        borderColor: BABY_PINK_BORDER,
-        paddingVertical: 14,
+        backgroundColor: BABY_PINK,
+        paddingVertical: 12,
         paddingHorizontal: 16,
+        borderRadius: 10,
+        borderWidth: 1,
+        borderColor: "#f3c3da",
     },
+
     addBtnTxt: {
         color: "#5a3750",
         fontWeight: "bold",
-        textAlign: "center",
     },
-    deleteBtn: {
-        marginTop: 8,
-        backgroundColor: BABY_PINK, // 베이비핑크
-        padding: 10,
-        borderWidth: 2,
-        borderColor: BABY_PINK_BORDER,
-        width: 120,
-        alignSelf: "center",
-        alignItems: "center",
-    },
-    deleteBtnTxt: {
-        color: "#5a3750",
-        fontWeight: "bold",
-        fontSize: 12,
-        textAlign: "center",
-    },
-
-    /* 나머지 동일 */
 
     previewImage: {
         width: 150,
-        height: 120,
-        marginBottom: 12,
+        height: 110,
+        borderRadius: 10,
+        marginTop: 12,
         borderWidth: 2,
-        borderColor: "#b191f3",
+        borderColor: CLEAN_BORDER,
     },
-    listText: {
-        marginTop: 30,
-        color: "#d7c5f7",
-    },
-    todoItem: {
-        backgroundColor: "#f3daff",
-        padding: 14,
-        marginVertical: 8,
-        marginHorizontal: 14,
-        borderWidth: 3,
-        borderColor: "#b191f3",
+
+    cardWrap: {
+        paddingBottom: 80,
         alignItems: "center",
     },
-    photoImage: {
-        width: 120,
-        height: 100,
-        marginBottom: 8,
+
+    card: {
+        backgroundColor: CLEAN_CARD,
+        width: 150,
+        padding: 12,
+        borderRadius: 12,
         borderWidth: 2,
-        borderColor: "#9b72d9",
+        borderColor: CLEAN_BORDER,
+        margin: 10,
+        alignItems: "center",
     },
-    todoIndex: {
-        fontWeight: "bold",
-        color: "#4c2a7b",
+
+    cardImg: {
+        width: 110,
+        height: 70,
+        borderRadius: 8,
+        marginBottom: 8,
     },
-    todoTitle: {
-        fontSize: 18,
-        fontWeight: "bold",
+
+    cardTitle: {
         color: "#4c2a7b",
-        marginVertical: 4,
+        fontWeight: "bold",
         textAlign: "center",
     },
-    todoDate: {
-        color: "#7a62a8",
+
+    cardDate: {
+        fontSize: 12,
+        color: "#8b72b6",
+        marginVertical: 4,
+    },
+
+    cardBtns: {
+        flexDirection: "row",
+        gap: 8,
+        marginTop: 6,
+    },
+
+    editBtn: {
+        backgroundColor: "#d9b6ff",
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+    },
+    editBtnTxt: { color: "#fff", fontWeight: "bold" },
+
+    deleteBtn: {
+        backgroundColor: BABY_PINK,
+        paddingVertical: 6,
+        paddingHorizontal: 10,
+        borderRadius: 8,
+    },
+    deleteBtnTxt: { color: "#5a3750", fontWeight: "bold" },
+
+    emptyText: {
+        color: "#d7c5f7",
+        marginTop: 30,
+        textAlign: "center",
     },
 });
